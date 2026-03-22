@@ -8,6 +8,7 @@ import { motion } from 'framer-motion'
 import { TagCombobox } from '../TagCombobox'
 import { EntriesRepository } from '../../db/EntriesRepository'
 import { snapToGrid } from '../../engine/timeEngine'
+import { useUndo } from '../UndoToast'
 import type { TimeEntry, Tag } from '../../db/schema'
 
 interface EntryEditorPanelProps {
@@ -34,6 +35,7 @@ function fromTimeInput(value: string, dayMs: number): number {
 }
 
 export function EntryEditorPanel({ entry, tags, onClose, onMutate }: EntryEditorPanelProps) {
+  const { showUndo } = useUndo()
   const dayMs = new Date(entry.startedAt).setHours(0, 0, 0, 0)
 
   const [startInput, setStartInput] = useState(toTimeInput(entry.startedAt))
@@ -73,9 +75,22 @@ export function EntryEditorPanel({ entry, tags, onClose, onMutate }: EntryEditor
   }
 
   const handleDelete = async () => {
+    const snapshot = { ...entry }
     await EntriesRepository.delete(entry.id)
     onMutate()
     onClose()
+    showUndo('Entry deleted', async () => {
+      await EntriesRepository.start(snapshot.tagIds, snapshot.notes).then(async (e) => {
+        // Re-insert with original times and id isn't possible via start(), so use update
+        await EntriesRepository.update(e.id, {
+          startedAt: snapshot.startedAt,
+          stoppedAt: snapshot.stoppedAt,
+          tagIds: snapshot.tagIds,
+          notes: snapshot.notes,
+        })
+      })
+      onMutate()
+    })
   }
 
   const markDirty = () => setDirty(true)

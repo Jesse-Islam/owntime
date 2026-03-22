@@ -22,9 +22,13 @@ export function useDayEntries(date: Date): DayEntriesResult {
 
   const reload = useCallback(() => setRev((r) => r + 1), [])
 
+  // Show loading spinner only when the date changes, not on silent reloads
+  useEffect(() => {
+    setIsLoading(true)
+  }, [date.toDateString()]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     let cancelled = false
-    setIsLoading(true)
     Promise.all([
       EntriesRepository.getByDay(date),
       TagsRepository.getAll(),

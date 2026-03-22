@@ -13,9 +13,9 @@
  */
 import { useState, useRef, useCallback, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { HardDrive, FolderOpen, Download, Upload, X, CheckCircle2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react'
+import { HardDrive, FolderOpen, Download, Upload, X, CheckCircle2, AlertCircle, RefreshCw, Trash2, AlertTriangle } from 'lucide-react'
 import { useBackup } from '../hooks/useBackup'
-import { restoreFromPayload, parseBackupJson } from '../utils/backup'
+import { restoreFromPayload, parseBackupJson, clearAllData } from '../utils/backup'
 
 const STALE_MS = 30 * 60 * 1000 // 30 min
 
@@ -30,7 +30,15 @@ export function DataHealth() {
   const backup = useBackup()
   const [open, setOpen] = useState(false)
   const [restoreError, setRestoreError] = useState<string | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleClearAll = useCallback(async () => {
+    await clearAllData()
+    setOpen(false)
+    setConfirmClear(false)
+    window.location.reload()
+  }, [])
 
   const color = healthColor(backup.lastBackupAt, backup.status)
 
@@ -187,6 +195,53 @@ export function DataHealth() {
                   All data is stored locally in your browser's IndexedDB.
                   Backups are plain JSON — fully portable.
                 </p>
+
+                {/* Danger zone */}
+                <div className="border-t pt-3" style={{ borderColor: 'var(--ot-border)' }}>
+                  <AnimatePresence mode="wait">
+                    {!confirmClear ? (
+                      <motion.button
+                        key="clear-btn"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={() => setConfirmClear(true)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20"
+                      >
+                        <Trash2 className="w-4 h-4 flex-shrink-0" />
+                        Clear all data…
+                      </motion.button>
+                    ) : (
+                      <motion.div
+                        key="clear-confirm"
+                        initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        className="rounded-lg border border-red-500/30 p-3 space-y-2.5"
+                        style={{ backgroundColor: 'rgba(239,68,68,0.07)' }}
+                      >
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-red-300 leading-relaxed">
+                            This will permanently delete <strong>all entries and tags</strong>.
+                            Your theme and settings are kept. This cannot be undone.
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setConfirmClear(false)}
+                            className="flex-1 py-1.5 rounded-md text-xs font-medium transition-colors border"
+                            style={{ borderColor: 'var(--ot-border)', color: 'var(--ot-muted)' }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleClearAll}
+                            className="flex-1 py-1.5 rounded-md text-xs font-semibold bg-red-600 hover:bg-red-500 text-white transition-colors"
+                          >
+                            Yes, delete everything
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </motion.div>
           </>

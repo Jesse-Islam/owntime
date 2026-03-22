@@ -11,10 +11,12 @@ import { EntriesRepository } from '../db/EntriesRepository'
 import { formatDuration } from '../engine/timeEngine'
 import { DataHealth } from './DataHealth'
 import { TagCombobox } from './TagCombobox'
+import { useUndo } from './UndoToast'
 
 export function ActionBar() {
   const { state, startTimer, stopTimer } = useTimer()
   const { runningEntry, elapsedMs: elapsed, isLoading } = state
+  const { showUndo } = useUndo()
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
@@ -37,12 +39,18 @@ export function ActionBar() {
 
   const handleToggle = useCallback(async () => {
     if (runningEntry) {
+      const snapshot = { ...runningEntry }
       await stopTimer()
       setSelectedTagIds([])
+      showUndo('Timer stopped', async () => {
+        // Restore running state — update the stopped entry back to running
+        await EntriesRepository.update(snapshot.id, { stoppedAt: null })
+        setSelectedTagIds(snapshot.tagIds)
+      })
     } else {
       await startTimer(selectedTagIds)
     }
-  }, [runningEntry, stopTimer, startTimer, selectedTagIds])
+  }, [runningEntry, stopTimer, startTimer, selectedTagIds, showUndo])
 
   useHotkeys('space', (e) => {
     if (document.activeElement?.tagName === 'INPUT') return

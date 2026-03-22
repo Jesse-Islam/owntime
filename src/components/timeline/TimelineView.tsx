@@ -68,7 +68,9 @@ export function TimelineView({ date, entries, tags, onMutate }: TimelineViewProp
     if ((e.target as HTMLElement).closest('[data-entry-block]')) return
 
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-    const relY = e.clientY - rect.top + (scrollRef.current?.scrollTop ?? 0)
+    // rect.top is the canvas position in the viewport (negative when scrolled down),
+    // so clientY - rect.top already gives the correct canvas-relative Y.
+    const relY = e.clientY - rect.top
     const clickedMs = dayStartMs + relY / PX_PER_MS
     const snappedStart = snapFloor(clickedMs)
     const snappedStop = snappedStart + 60 * 60 * 1000

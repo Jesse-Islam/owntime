@@ -128,6 +128,17 @@ export async function restoreFromPayload(payload: BackupPayload): Promise<void> 
 }
 
 /**
+ * Erase all entries and tags from the database.
+ * Preserves settings (theme, etc.) so the app stays configured.
+ */
+export async function clearAllData(): Promise<void> {
+  await Promise.all([
+    EntriesRepository.importAll([]),
+    TagsRepository.importAll([]),
+  ])
+}
+
+/**
  * Parse and validate a JSON string as a BackupPayload.
  * Throws if the payload is not recognised.
  */

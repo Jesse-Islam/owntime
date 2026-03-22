@@ -5,6 +5,7 @@ import { TimerProvider } from './components/TimerProvider'
 import { ActionBar } from './components/ActionBar'
 import { MobileNav } from './components/MobileNav'
 import { DesktopSidebar } from './components/DesktopSidebar'
+import { UndoToastProvider } from './components/UndoToast'
 import { TimerPage } from './pages/TimerPage'
 import { TimelinePage } from './pages/TimelinePage'
 import { StatsPage } from './pages/StatsPage'
@@ -26,6 +27,7 @@ export default function App() {
 
   return (
     <ThemeProvider>
+      <UndoToastProvider>
       <TimerProvider>
         <DesktopSidebar page={page} onNavigate={setPage} />
         <ActionBar />
@@ -55,6 +57,7 @@ export default function App() {
 
         <MobileNav page={page} onNavigate={setPage} />
       </TimerProvider>
+      </UndoToastProvider>
     </ThemeProvider>
   )
 }
