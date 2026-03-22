@@ -1,62 +1,59 @@
 import { useState } from 'react'
-import { Timer, BarChart2, CalendarDays } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { TimerProvider } from './components/TimerProvider'
+import { ActionBar } from './components/ActionBar'
+import { MobileNav } from './components/MobileNav'
+import { DesktopSidebar } from './components/DesktopSidebar'
+import { TimerPage } from './pages/TimerPage'
+import { TimelinePage } from './pages/TimelinePage'
+import { StatsPage } from './pages/StatsPage'
 
-type Page = 'timer' | 'timeline' | 'stats'
+export type Page = 'timer' | 'timeline' | 'stats'
 
-function App() {
+const PAGE_COMPONENTS: Record<Page, React.ComponentType> = {
+  timer:    TimerPage,
+  timeline: TimelinePage,
+  stats:    StatsPage,
+}
+
+export default function App() {
   const [page, setPage] = useState<Page>('timer')
+  const PageComponent = PAGE_COMPONENTS[page]
 
   return (
-    <div className="flex flex-col h-full bg-[#0f172a] text-slate-200">
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-2xl mx-auto">
-          {page === 'timer' && (
-            <div className="flex flex-col items-center justify-center h-full min-h-64 gap-4">
-              <h1 className="text-3xl font-bold tracking-tight text-slate-100">OwnTime</h1>
-              <p className="text-slate-400 text-sm">Privacy-first local time tracker</p>
-              <div className="text-6xl font-mono font-light text-slate-100 tabular-nums">
-                00:00:00
-              </div>
-              <button className="mt-4 w-20 h-20 rounded-full bg-indigo-500 hover:bg-indigo-400 active:scale-95 transition-all flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                <Timer className="w-8 h-8 text-white" />
-              </button>
-            </div>
-          )}
-          {page === 'timeline' && (
-            <div className="text-slate-400 text-center py-16">Timeline coming in Phase 5</div>
-          )}
-          {page === 'stats' && (
-            <div className="text-slate-400 text-center py-16">Stats coming soon</div>
-          )}
-        </div>
+    <TimerProvider>
+      {/* Desktop sidebar (md+) */}
+      <DesktopSidebar page={page} onNavigate={setPage} />
+
+      {/* Global action bar */}
+      <ActionBar />
+
+      {/* Main scrollable content area */}
+      {/* Desktop: offset for sidebar (left-64) + action bar (top-[57px]) */}
+      {/* Mobile: offset for action bar (top-[57px]) + bottom nav (bottom-[65px]) */}
+      <main
+        className="
+          flex-1 overflow-y-auto
+          pt-[57px] pb-[65px]
+          md:pl-64 md:pb-0
+        "
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={page}
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.18 }}
+            className="min-h-full"
+          >
+            <PageComponent />
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden border-t border-slate-700/50 bg-[#1e293b] safe-bottom">
-        <div className="flex items-center justify-around">
-          {(
-            [
-              { id: 'timer', icon: Timer, label: 'Timer' },
-              { id: 'timeline', icon: CalendarDays, label: 'Timeline' },
-              { id: 'stats', icon: BarChart2, label: 'Stats' },
-            ] as const
-          ).map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => setPage(id)}
-              className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs transition-colors ${
-                page === id ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
-    </div>
+      <MobileNav page={page} onNavigate={setPage} />
+    </TimerProvider>
   )
 }
-
-export default App
