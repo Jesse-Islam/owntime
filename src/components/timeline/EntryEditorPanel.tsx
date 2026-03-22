@@ -79,16 +79,9 @@ export function EntryEditorPanel({ entry, tags, onClose, onMutate }: EntryEditor
     await EntriesRepository.delete(entry.id)
     onMutate()
     onClose()
-    showUndo('Entry deleted', async () => {
-      await EntriesRepository.start(snapshot.tagIds, snapshot.notes).then(async (e) => {
-        // Re-insert with original times and id isn't possible via start(), so use update
-        await EntriesRepository.update(e.id, {
-          startedAt: snapshot.startedAt,
-          stoppedAt: snapshot.stoppedAt,
-          tagIds: snapshot.tagIds,
-          notes: snapshot.notes,
-        })
-      })
+    showUndo('Entry deleted — undo to restore it', async () => {
+      // Re-insert the exact original entry (same id, same times, same tags)
+      await EntriesRepository.restore(snapshot)
       onMutate()
     })
   }

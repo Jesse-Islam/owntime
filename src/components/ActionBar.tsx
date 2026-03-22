@@ -14,7 +14,7 @@ import { TagCombobox } from './TagCombobox'
 import { useUndo } from './UndoToast'
 
 export function ActionBar() {
-  const { state, startTimer, stopTimer } = useTimer()
+  const { state, startTimer, stopTimer, restoreTimer } = useTimer()
   const { runningEntry, elapsedMs: elapsed, isLoading } = state
   const { showUndo } = useUndo()
 
@@ -42,15 +42,17 @@ export function ActionBar() {
       const snapshot = { ...runningEntry }
       await stopTimer()
       setSelectedTagIds([])
-      showUndo('Timer stopped', async () => {
-        // Restore running state — update the stopped entry back to running
+      showUndo('Timer stopped — undo to resume', async () => {
+        // Restore DB: set stoppedAt back to null
         await EntriesRepository.update(snapshot.id, { stoppedAt: null })
+        // Restore store: tell TimerProvider about the running entry again
+        restoreTimer({ ...snapshot, stoppedAt: null })
         setSelectedTagIds(snapshot.tagIds)
       })
     } else {
       await startTimer(selectedTagIds)
     }
-  }, [runningEntry, stopTimer, startTimer, selectedTagIds, showUndo])
+  }, [runningEntry, stopTimer, startTimer, selectedTagIds, showUndo, restoreTimer])
 
   useHotkeys('space', (e) => {
     if (document.activeElement?.tagName === 'INPUT') return

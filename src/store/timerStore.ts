@@ -40,6 +40,8 @@ export interface TimerContextValue {
   state: TimerState
   startTimer: (tagIds?: string[], notes?: string) => Promise<void>
   stopTimer: () => Promise<void>
+  /** Restore a running entry into the store without touching the DB (DB already updated). */
+  restoreTimer: (entry: TimeEntry) => void
 }
 
 export const TimerContext = createContext<TimerContextValue | null>(null)

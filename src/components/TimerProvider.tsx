@@ -2,6 +2,7 @@ import { useReducer, useEffect, useRef, useCallback, type ReactNode } from 'reac
 import { EntriesRepository } from '../db/EntriesRepository'
 import { TimerContext, timerReducer, initialTimerState } from '../store/timerStore'
 import { elapsedMs } from '../engine/timeEngine'
+import type { TimeEntry } from '../db/schema'
 
 export function TimerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(timerReducer, initialTimerState)
@@ -47,8 +48,12 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_RUNNING', entry: null })
   }, [state.runningEntry])
 
+  const restoreTimer = useCallback((entry: TimeEntry) => {
+    dispatch({ type: 'SET_RUNNING', entry })
+  }, [])
+
   return (
-    <TimerContext.Provider value={{ state, startTimer, stopTimer }}>
+    <TimerContext.Provider value={{ state, startTimer, stopTimer, restoreTimer }}>
       {children}
     </TimerContext.Provider>
   )

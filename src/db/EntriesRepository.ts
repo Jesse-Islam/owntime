@@ -76,6 +76,11 @@ export const EntriesRepository = {
     await db.entries.delete(id)
   },
 
+  /** Restore a previously deleted entry (preserves original id and all fields). */
+  async restore(entry: TimeEntry): Promise<void> {
+    await db.entries.put(entry)
+  },
+
   /** Return total tracked ms across all entries in a date range. */
   async totalMsInRange(fromMs: number, toMs: number): Promise<number> {
     const entries = await EntriesRepository.getRange(fromMs, toMs)
