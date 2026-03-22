@@ -91,13 +91,14 @@ export function DataHealth() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -8 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-2 z-50 w-72 bg-slate-800 border border-slate-600/50 rounded-xl shadow-2xl overflow-hidden"
+              className="absolute right-0 top-full mt-2 z-50 w-72 rounded-xl shadow-2xl overflow-hidden border"
+            style={{ backgroundColor: 'var(--ot-surface)', borderColor: 'var(--ot-border)' }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
+              <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--ot-border)' }}>
                 <div className="flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotClass}`} />
-                  <span className="text-sm font-semibold text-slate-100">Data Health</span>
+                  <span className="text-sm font-semibold ot-text">Data Health</span>
                 </div>
                 <button onClick={() => setOpen(false)} className="text-slate-500 hover:text-slate-300 transition-colors">
                   <X className="w-4 h-4" />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { ThemeProvider } from './components/ThemeProvider'
 import { TimerProvider } from './components/TimerProvider'
 import { ActionBar } from './components/ActionBar'
 import { MobileNav } from './components/MobileNav'
@@ -10,50 +11,50 @@ import { StatsPage } from './pages/StatsPage'
 
 export type Page = 'timer' | 'timeline' | 'stats'
 
-const PAGE_COMPONENTS: Record<Page, React.ComponentType> = {
-  timer:    TimerPage,
-  timeline: TimelinePage,
-  stats:    StatsPage,
-}
+// Timeline needs its own inner scroll; other pages are normal scrolling content.
+const FULL_HEIGHT_PAGES: Page[] = ['timeline']
 
 export default function App() {
   const [page, setPage] = useState<Page>('timer')
-  const PageComponent = PAGE_COMPONENTS[page]
+  const isFullHeight = FULL_HEIGHT_PAGES.includes(page)
+
+  const PageComponent = {
+    timer: TimerPage,
+    timeline: TimelinePage,
+    stats: StatsPage,
+  }[page]
 
   return (
-    <TimerProvider>
-      {/* Desktop sidebar (md+) */}
-      <DesktopSidebar page={page} onNavigate={setPage} />
+    <ThemeProvider>
+      <TimerProvider>
+        <DesktopSidebar page={page} onNavigate={setPage} />
+        <ActionBar />
 
-      {/* Global action bar */}
-      <ActionBar />
+        {/*
+          main is flex-col, overflow-hidden.
+          The timeline page manages its own internal scroll.
+          Other pages scroll normally via their own overflow-y-auto wrappers.
+        */}
+        <main
+          className="flex-1 flex flex-col overflow-hidden pt-[53px] pb-[65px] md:pl-64 md:pb-0"
+          style={{ backgroundColor: 'var(--ot-bg)' }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={page}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className={isFullHeight ? 'flex-1 flex flex-col overflow-hidden' : 'flex-1 overflow-y-auto'}
+            >
+              <PageComponent />
+            </motion.div>
+          </AnimatePresence>
+        </main>
 
-      {/* Main scrollable content area */}
-      {/* Desktop: offset for sidebar (left-64) + action bar (top-[57px]) */}
-      {/* Mobile: offset for action bar (top-[57px]) + bottom nav (bottom-[65px]) */}
-      <main
-        className="
-          flex-1 overflow-y-auto
-          pt-[57px] pb-[65px]
-          md:pl-64 md:pb-0
-        "
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={page}
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -8 }}
-            transition={{ duration: 0.18 }}
-            className="min-h-full"
-          >
-            <PageComponent />
-          </motion.div>
-        </AnimatePresence>
-      </main>
-
-      {/* Mobile bottom nav */}
-      <MobileNav page={page} onNavigate={setPage} />
-    </TimerProvider>
+        <MobileNav page={page} onNavigate={setPage} />
+      </TimerProvider>
+    </ThemeProvider>
   )
 }

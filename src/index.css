@@ -1,37 +1,109 @@
 @import "tailwindcss";
 
-@theme {
-  --color-brand: #6366f1;
-  --color-brand-hover: #4f46e5;
-  --color-surface: #0f172a;
-  --color-surface-2: #1e293b;
-  --color-surface-3: #334155;
-  --color-text: #e2e8f0;
-  --color-text-muted: #94a3b8;
-  --color-success: #22c55e;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
+/* ─── OwnTime Design Tokens ────────────────────────────────────────────────── */
+/* Applied via [data-theme] on <html>. All components reference --ot-* vars.   */
+
+:root,
+[data-theme="slate"] {
+  --ot-bg:         #0f172a;
+  --ot-surface:    #1e293b;
+  --ot-surface2:   #293548;
+  --ot-border:     rgba(51, 65, 85, 0.7);
+  --ot-text:       #e2e8f0;
+  --ot-muted:      #94a3b8;
+  --ot-faint:      #475569;
+  --ot-accent:     #6366f1;
+  --ot-accent-bg:  rgba(99, 102, 241, 0.12);
+  --ot-accent-text:#818cf8;
+  --ot-danger:     #ef4444;
+  --ot-success:    #22c55e;
+  --ot-warning:    #f59e0b;
+  color-scheme: dark;
 }
 
+[data-theme="carbon"] {
+  --ot-bg:         #080808;
+  --ot-surface:    #111111;
+  --ot-surface2:   #1c1c1c;
+  --ot-border:     rgba(255, 255, 255, 0.06);
+  --ot-text:       #f2f2f2;
+  --ot-muted:      #888888;
+  --ot-faint:      #444444;
+  --ot-accent:     #818cf8;
+  --ot-accent-bg:  rgba(129, 140, 248, 0.1);
+  --ot-accent-text:#a5b4fc;
+  --ot-danger:     #f87171;
+  --ot-success:    #4ade80;
+  --ot-warning:    #fbbf24;
+  color-scheme: dark;
+}
+
+[data-theme="sand"] {
+  --ot-bg:         #faf7f0;
+  --ot-surface:    #f2ede3;
+  --ot-surface2:   #e8e0cf;
+  --ot-border:     rgba(100, 80, 50, 0.16);
+  --ot-text:       #1c1710;
+  --ot-muted:      #6b5a42;
+  --ot-faint:      #a08464;
+  --ot-accent:     #7c3aed;
+  --ot-accent-bg:  rgba(124, 58, 237, 0.08);
+  --ot-accent-text:#7c3aed;
+  --ot-danger:     #dc2626;
+  --ot-success:    #16a34a;
+  --ot-warning:    #d97706;
+  color-scheme: light;
+}
+
+[data-theme="frost"] {
+  --ot-bg:         #f8fafc;
+  --ot-surface:    #f1f5f9;
+  --ot-surface2:   #e2e8f0;
+  --ot-border:     rgba(71, 85, 105, 0.14);
+  --ot-text:       #0f172a;
+  --ot-muted:      #475569;
+  --ot-faint:      #94a3b8;
+  --ot-accent:     #4f46e5;
+  --ot-accent-bg:  rgba(79, 70, 229, 0.08);
+  --ot-accent-text:#4f46e5;
+  --ot-danger:     #dc2626;
+  --ot-success:    #16a34a;
+  --ot-warning:    #d97706;
+  color-scheme: light;
+}
+
+/* ─── Semantic helper classes ───────────────────────────────────────────────── */
+/* Use these alongside Tailwind layout classes. */
+@layer utilities {
+  .ot-bg       { background-color: var(--ot-bg); }
+  .ot-surface  { background-color: var(--ot-surface); }
+  .ot-surface2 { background-color: var(--ot-surface2); }
+  .ot-text     { color: var(--ot-text); }
+  .ot-muted    { color: var(--ot-muted); }
+  .ot-faint    { color: var(--ot-faint); }
+  .ot-border   { border-color: var(--ot-border); }
+  .ot-accent   { color: var(--ot-accent-text); }
+
+  .safe-top    { padding-top: max(0px, env(safe-area-inset-top)); }
+  .safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .pb-safe     { padding-bottom: env(safe-area-inset-bottom, 0px); }
+}
+
+/* ─── Base reset ─────────────────────────────────────────────────────────────  */
 @layer base {
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
+  *, *::before, *::after { box-sizing: border-box; }
 
   html {
     height: 100%;
-    background-color: #0f172a;
-    color-scheme: dark;
+    background-color: var(--ot-bg);
   }
 
   body {
     height: 100%;
     margin: 0;
     padding: 0;
-    background-color: #0f172a;
-    color: #e2e8f0;
+    background-color: var(--ot-bg);
+    color: var(--ot-text);
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -44,24 +116,12 @@
     flex-direction: column;
   }
 
-  button,
-  [role='button'] {
+  button, [role='button'] {
     -webkit-tap-highlight-color: transparent;
     cursor: pointer;
   }
-}
 
-@layer utilities {
-  .safe-top {
-    padding-top: max(0px, env(safe-area-inset-top));
-  }
-  .safe-bottom {
-    padding-bottom: max(1rem, env(safe-area-inset-bottom));
-  }
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .mb-safe {
-    margin-bottom: env(safe-area-inset-bottom, 0px);
+  input, textarea {
+    color: var(--ot-text);
   }
 }

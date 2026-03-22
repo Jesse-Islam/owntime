@@ -1,15 +1,9 @@
 /**
- * EntryBlock — a single time entry rendered as a positioned block in the timeline.
- * Supports:
- *  - Drag to move (via @dnd-kit useDraggable)
- *  - Resize handle at bottom
- *  - Click to edit (inline edit form)
+ * EntryBlock — positioned time entry block in the timeline.
+ * Click to select. Bottom handle to resize (pointer-capture based).
+ * No DnD library — pure pointer events.
  */
-import { useRef, useState, type PointerEvent } from 'react'
-import { useDraggable } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, X } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useRef } from 'react'
 import { formatDurationCompact } from '../../engine/timeEngine'
 import type { TimeEntry, Tag } from '../../db/schema'
 import { PX_PER_MS } from './TimelineGrid'
@@ -18,168 +12,102 @@ interface EntryBlockProps {
   entry: TimeEntry
   tags: Map<string, Tag>
   dayStartMs: number
-  onDelete: (id: string) => void
-  onResizeEnd: (id: string, newStoppedAt: number) => void
+  selected: boolean
+  previewStopMs?: number          // set during live resize
+  onSelect: (id: string) => void
+  onResizeStart: (id: string, startY: number, originalStopMs: number) => void
 }
 
-export function EntryBlock({ entry, tags, dayStartMs, onDelete, onResizeEnd }: EntryBlockProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const resizingRef = useRef(false)
-  const resizeStartY = useRef(0)
-  const resizeStartStop = useRef(0)
-
-  // @dnd-kit draggable
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: entry.id,
-    data: { entry },
-  })
-
-  const effectiveStop = entry.stoppedAt ?? Date.now()
+export function EntryBlock({
+  entry,
+  tags,
+  dayStartMs,
+  selected,
+  previewStopMs,
+  onSelect,
+  onResizeStart,
+}: EntryBlockProps) {
+  const effectiveStop = previewStopMs ?? entry.stoppedAt ?? Date.now()
   const topPx = (entry.startedAt - dayStartMs) * PX_PER_MS
-  const heightPx = Math.max((effectiveStop - entry.startedAt) * PX_PER_MS, 12) // min 12px
+  const rawHeight = (effectiveStop - entry.startedAt) * PX_PER_MS
+  const heightPx = Math.max(rawHeight, 14)
 
-  const entryTags = entry.tagIds
-    .map((id) => tags.get(id))
-    .filter(Boolean) as Tag[]
-
-  const duration = formatDurationCompact(effectiveStop - entry.startedAt)
-
-  // Primary color from first tag, fallback to indigo
+  const entryTags = entry.tagIds.map((id) => tags.get(id)).filter(Boolean) as Tag[]
   const color = entryTags[0]?.color ?? '#6366f1'
+  const duration = formatDurationCompact(effectiveStop - entry.startedAt)
+  const isRunning = entry.stoppedAt === null
 
-  // Resize pointer events
-  const onResizePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+  const handleRef = useRef<HTMLDivElement>(null)
+
+  function onHandlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
-    resizingRef.current = true
-    resizeStartY.current = e.clientY
-    resizeStartStop.current = entry.stoppedAt ?? Date.now()
-  }
-
-  const onResizePointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!resizingRef.current) return
-    const deltaY = e.clientY - resizeStartY.current
-    const deltaMs = deltaY / PX_PER_MS
-    // Will be snapped externally; emit raw value and let parent snap
-    const newStop = resizeStartStop.current + deltaMs
-    if (newStop > entry.startedAt + 60_000) {
-      onResizeEnd(entry.id, newStop)
-    }
-  }
-
-  const onResizePointerUp = (e: PointerEvent<HTMLDivElement>) => {
-    resizingRef.current = false
-    e.currentTarget.releasePointerCapture(e.pointerId)
-  }
-
-  const style = {
-    top: topPx,
-    height: heightPx,
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
+    onResizeStart(entry.id, e.clientY, entry.stoppedAt ?? Date.now())
   }
 
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      className="absolute left-12 right-1 z-10"
+      className="absolute z-10 cursor-pointer group"
+      style={{ top: topPx, left: '3.5rem', right: '4px', height: heightPx }}
+      onClick={(e) => { e.stopPropagation(); onSelect(entry.id) }}
+      data-entry-block
     >
-      <motion.div
-        layout
-        className={`
-          relative h-full rounded-md overflow-hidden cursor-pointer
-          border transition-shadow
-          ${isDragging ? 'shadow-2xl ring-2 ring-indigo-400' : 'shadow-md hover:shadow-lg'}
-        `}
+      {/* Main block */}
+      <div
+        className="relative h-full rounded-md overflow-visible transition-shadow"
         style={{
-          backgroundColor: color + '1a',
-          borderColor: color + '44',
+          backgroundColor: color + (selected ? '28' : '18'),
+          border: `1px solid ${color}${selected ? '80' : '40'}`,
+          boxShadow: selected ? `0 0 0 2px ${color}60, 0 4px 12px ${color}30` : '0 1px 3px rgba(0,0,0,0.15)',
         }}
-        onClick={() => setIsExpanded((v) => !v)}
       >
-        {/* Left accent bar */}
+        {/* Left accent */}
         <div
           className="absolute left-0 top-0 bottom-0 w-1 rounded-l-md"
           style={{ backgroundColor: color }}
         />
 
-        {/* Drag handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="absolute left-1 top-1/2 -translate-y-1/2 p-1 cursor-grab active:cursor-grabbing touch-none"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical className="w-3 h-3 text-slate-500" />
-        </div>
-
         {/* Content */}
-        <div className="pl-5 pr-6 py-1 h-full flex flex-col justify-center min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {entryTags.slice(0, 2).map((tag) => (
+        <div className="pl-2.5 pr-2 py-1 h-full flex flex-col justify-center min-w-0 overflow-hidden">
+          <div className="flex items-center gap-1 flex-wrap">
+            {isRunning && (
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse flex-shrink-0" />
+            )}
+            {entryTags.slice(0, 3).map((tag) => (
               <span
                 key={tag.id}
-                className="text-[10px] font-medium truncate px-1.5 py-0.5 rounded-full"
-                style={{ backgroundColor: tag.color + '33', color: tag.color }}
+                className="text-[10px] font-medium px-1.5 py-px rounded-full leading-tight whitespace-nowrap"
+                style={{ backgroundColor: tag.color + '28', color: tag.color }}
               >
                 {tag.name}
               </span>
             ))}
-            {entryTags.length === 0 && (
-              <span className="text-[10px] text-slate-500 italic">No tags</span>
+            {entryTags.length === 0 && heightPx > 18 && (
+              <span className="text-[10px] italic" style={{ color: color + 'aa' }}>No tags</span>
             )}
           </div>
-          {heightPx > 28 && (
-            <div className="text-[10px] text-slate-400 font-mono mt-0.5">{duration}</div>
+          {heightPx > 30 && (
+            <div className="text-[10px] font-mono mt-0.5 leading-none" style={{ color: color + 'cc' }}>
+              {duration}
+            </div>
           )}
         </div>
 
-        {/* Delete button */}
-        <button
-          className="absolute top-1 right-1 w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-opacity"
-          onClick={(e) => { e.stopPropagation(); onDelete(entry.id) }}
-          aria-label="Delete entry"
-          style={{ opacity: isExpanded ? 1 : undefined }}
-        >
-          <X className="w-3 h-3 text-slate-400 hover:text-red-400" />
-        </button>
-
-        {/* Expanded detail */}
-        <AnimatePresence>
-          {isExpanded && heightPx < 60 && (
-            <motion.div
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="absolute left-0 right-0 top-full mt-1 z-20 bg-slate-800 border border-slate-600/50 rounded-lg p-3 shadow-xl text-xs text-slate-300"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="font-mono mb-1">{duration}</div>
-              <div className="text-slate-500">
-                {new Date(entry.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                {' → '}
-                {entry.stoppedAt
-                  ? new Date(entry.stoppedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  : 'running'}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Resize handle */}
-        {entry.stoppedAt !== null && (
+        {/* Resize handle — only for completed entries */}
+        {!isRunning && (
           <div
-            className="absolute bottom-0 left-1 right-1 h-2 cursor-ns-resize flex items-center justify-center group/resize touch-none"
-            onPointerDown={onResizePointerDown}
-            onPointerMove={onResizePointerMove}
-            onPointerUp={onResizePointerUp}
+            ref={handleRef}
+            className="absolute bottom-0 left-0 right-0 h-3 flex items-end justify-center pb-0.5 cursor-ns-resize touch-none"
+            onPointerDown={onHandlePointerDown}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-8 h-0.5 rounded-full bg-slate-600 group-hover/resize:bg-indigo-400 transition-colors" />
+            <div
+              className="w-8 h-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ backgroundColor: color + 'aa' }}
+            />
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   )
 }
