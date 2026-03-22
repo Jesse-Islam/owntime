@@ -53,8 +53,6 @@ export function EntryEditorPanel({ entry, tags, onClose, onMutate }: EntryEditor
     setDirty(false)
   }, [entry.id, entry.startedAt, entry.stoppedAt]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const allTags = Array.from(tags.values())
-
   const handleSave = async () => {
     const newStart = snapToGrid(fromTimeInput(startInput, dayMs))
     const newStop = stopInput
@@ -174,7 +172,6 @@ export function EntryEditorPanel({ entry, tags, onClose, onMutate }: EntryEditor
         {/* Tags row */}
         <TagCombobox
           selectedTagIds={tagIds}
-          allTags={allTags}
           onChange={(ids) => { setTagIds(ids); setDirty(true) }}
           placeholder="Add tags…"
         />

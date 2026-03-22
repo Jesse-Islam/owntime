@@ -1,24 +1,19 @@
 /**
- * TimelineView — scroll container + entry blocks + resize logic.
- * No @dnd-kit. Interactions:
+ * TimelineView — scroll container + entry blocks.
+ * Interactions:
  *   - Click entry  → select it (shows editor panel below)
+ *   - Drag entry   → move (handled inside EntryBlock)
+ *   - Drag handle  → resize (handled inside EntryBlock)
  *   - Click empty  → create 1-hour block, snap to grid, select it
- *   - Drag bottom handle → resize (pointer-capture, live preview)
  */
 import { useRef, useState, useCallback, useEffect, type MouseEvent } from 'react'
 import { EntriesRepository } from '../../db/EntriesRepository'
-import { snapToGrid, snapFloor } from '../../engine/timeEngine'
+import { snapFloor } from '../../engine/timeEngine'
 import { TimelineGrid, HOUR_HEIGHT_PX, PX_PER_MS, TOTAL_HEIGHT_PX } from './TimelineGrid'
 import { EntryBlock } from './EntryBlock'
 import { EntryEditorPanel } from './EntryEditorPanel'
 import { AnimatePresence } from 'framer-motion'
 import type { TimeEntry, Tag } from '../../db/schema'
-
-interface ResizeState {
-  entryId: string
-  startY: number
-  originalStopMs: number
-}
 
 interface TimelineViewProps {
   date: Date
@@ -32,8 +27,7 @@ export function TimelineView({ date, entries, tags, onMutate }: TimelineViewProp
   const dayStartMs = new Date(date).setHours(0, 0, 0, 0)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [previewStop, setPreviewStop] = useState<{ id: string; ms: number } | null>(null)
-  const resizeRef = useRef<ResizeState | null>(null)
+  const suppressNextClick = useRef(false)
 
   // Scroll to current time on mount / date change
   useEffect(() => {
@@ -45,48 +39,33 @@ export function TimelineView({ date, entries, tags, onMutate }: TimelineViewProp
     el.scrollTop = Math.max(0, targetPx)
   }, [date.toDateString()]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Deselect when entries change (e.g. after delete)
+  // Keep selectedEntry in sync (null-safe after delete)
   const selectedEntry = entries.find((e) => e.id === selectedId) ?? null
 
-  // ── Pointer move / up on scroll container for resize ──────────────────────
-  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const rs = resizeRef.current
-    if (!rs) return
-    const deltaY = e.clientY - rs.startY
-    const deltaMs = deltaY / PX_PER_MS
-    const newStop = rs.originalStopMs + deltaMs
-    if (newStop > 0) {
-      setPreviewStop({ id: rs.entryId, ms: newStop })
-    }
+  // Called by EntryBlock before committing a drag or resize
+  const onSuppressNextClick = useCallback(() => {
+    suppressNextClick.current = true
   }, [])
 
-  const onPointerUp = useCallback(async (e: React.PointerEvent<HTMLDivElement>) => {
-    const rs = resizeRef.current
-    if (!rs) return
-    const deltaY = e.clientY - rs.startY
-    const deltaMs = deltaY / PX_PER_MS
-    const rawStop = rs.originalStopMs + deltaMs
-    const snappedStop = snapToGrid(rawStop)
+  // Called by EntryBlock when a drag-to-move is committed
+  const onMoveCommit = useCallback(async (id: string, newStartMs: number, newStopMs: number | null) => {
+    await EntriesRepository.update(id, { startedAt: newStartMs, stoppedAt: newStopMs })
+    onMutate()
+  }, [onMutate])
 
-    // Get the entry to ensure stop > start
-    const entry = entries.find((en) => en.id === rs.entryId)
-    if (entry && snappedStop > entry.startedAt + 5 * 60 * 1000) {
-      await EntriesRepository.update(rs.entryId, { stoppedAt: snappedStop })
-      onMutate()
-    }
-    resizeRef.current = null
-    setPreviewStop(null)
-  }, [entries, onMutate])
-
-  const onResizeStart = useCallback((entryId: string, startY: number, originalStopMs: number) => {
-    resizeRef.current = { entryId, startY, originalStopMs }
-  }, [])
+  // Called by EntryBlock when a resize is committed
+  const onResizeCommit = useCallback(async (id: string, newStopMs: number) => {
+    await EntriesRepository.update(id, { stoppedAt: newStopMs })
+    onMutate()
+  }, [onMutate])
 
   // ── Click empty space → create entry ────────────────────────────────────
   const onCanvasClick = useCallback(async (e: MouseEvent<HTMLDivElement>) => {
+    if (suppressNextClick.current) {
+      suppressNextClick.current = false
+      return
+    }
     if ((e.target as HTMLElement).closest('[data-entry-block]')) return
-    // Don't create during a resize
-    if (resizeRef.current) return
 
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
     const relY = e.clientY - rect.top + (scrollRef.current?.scrollTop ?? 0)
@@ -94,14 +73,12 @@ export function TimelineView({ date, entries, tags, onMutate }: TimelineViewProp
     const snappedStart = snapFloor(clickedMs)
     const snappedStop = snappedStart + 60 * 60 * 1000
 
-    // Create, then immediately close with snapped times
     const newEntry = await EntriesRepository.start([], '')
     await EntriesRepository.update(newEntry.id, {
       startedAt: snappedStart,
       stoppedAt: snappedStop,
     })
     onMutate()
-    // Select the new entry after reload
     setTimeout(() => setSelectedId(newEntry.id), 50)
   }, [dayStartMs, onMutate])
 
@@ -113,12 +90,6 @@ export function TimelineView({ date, entries, tags, onMutate }: TimelineViewProp
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto overflow-x-hidden relative"
-        style={{ cursor: resizeRef.current ? 'ns-resize' : 'default' }}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onClick={() => {
-          // Deselect when clicking on the background (handled after canvas click check)
-        }}
       >
         <div
           className="relative"
@@ -134,9 +105,10 @@ export function TimelineView({ date, entries, tags, onMutate }: TimelineViewProp
               tags={tags}
               dayStartMs={dayStartMs}
               selected={entry.id === selectedId}
-              previewStopMs={previewStop?.id === entry.id ? previewStop.ms : undefined}
               onSelect={setSelectedId}
-              onResizeStart={onResizeStart}
+              onMoveCommit={onMoveCommit}
+              onResizeCommit={onResizeCommit}
+              onSuppressNextClick={onSuppressNextClick}
             />
           ))}
         </div>
