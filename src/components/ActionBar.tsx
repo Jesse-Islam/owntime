@@ -10,6 +10,7 @@ import { useHotkeys } from 'react-hotkeys-hook'
 import { useTimer } from '../store/timerStore'
 import { TagsRepository } from '../db/TagsRepository'
 import { formatDuration } from '../engine/timeEngine'
+import { DataHealth } from './DataHealth'
 import type { Tag as TagType } from '../db/schema'
 
 export function ActionBar() {
@@ -103,6 +104,9 @@ export function ActionBar() {
     <div className="fixed top-0 left-0 right-0 z-40 md:left-64 safe-top">
       <div className="bg-slate-800/95 backdrop-blur-sm border-b border-slate-700/50 px-4 py-3">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
+
+          {/* Data Health indicator */}
+          <DataHealth />
 
           {/* Play/Stop button */}
           <motion.button
