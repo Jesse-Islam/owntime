@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: '/owntime/',
   plugins: [
     react(),
     tailwindcss(),
@@ -18,8 +19,8 @@ export default defineConfig({
         background_color: '#0f172a',
         display: 'standalone',
         orientation: 'portrait-primary',
-        scope: '/',
-        start_url: '/',
+        scope: '/owntime/',
+        start_url: '/owntime/',
         icons: [
           {
             src: 'icons/icon-192.png',
